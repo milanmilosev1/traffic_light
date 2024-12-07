@@ -34,6 +34,8 @@ signal sRED_PREV_CNT		: std_logic_vector(3 downto 0);
 signal sRED_TENS_EN		: std_logic;
 signal sRED_DONE			: std_logic;
 
+signal sRED_TENS_DONE	: std_logic;
+
 signal sGREEN_UNITS_CNT	: std_logic_vector(3 downto 0);
 signal sGREEN_TENS_CNT	: std_logic_vector(3 downto 0);
 signal sGREEN_PREV_CNT	: std_logic_vector(3 downto 0);
@@ -155,20 +157,23 @@ begin
 		if(iRST = '1') then
 			sRED_TENS_CNT <= "0010";
 		elsif(rising_edge(iCLK)) then
+		
 			if(sRED_TENS_EN = '1') then
+			
 				if(sRED_TENS_CNT = 0) then
 					sRED_TENS_CNT <= "0010";
 				else
 					sRED_TENS_CNT <= sRED_TENS_CNT - 1;
 				end if;
+				
 			elsif(sRED_DONE = '1') then
 				sRED_TENS_CNT <= "0010";
 			end if;
+			
 		end if;
 	end process;
 	
-	
-	sRED_DONE <= '1' when sSTATE = RED and sRED_TENS_CNT = 0 and sRED_PREV_CNT = 0 else '0';
+	sRED_DONE <= '1' when sSTATE = RED and sRED_COUNT_EN = '1' and sRED_TENS_CNT = 0 and sRED_PREV_CNT = 0 else '0';
 	
 	-- yellow timer
 	process(iCLK, iRST)
@@ -228,12 +233,12 @@ begin
 		end if;
 	end process;
 	
-	-- registar prev cnt green
+	-- registar prev cnt green; cuva prethodnu vrednost 
 	process(iCLK, iRST)
 	begin
 		if(iRST = '1') then
 			sGREEN_PREV_CNT <= "1001";
-		elsif(rising_edge(iCLK) and sSTATE = GREEN) then
+		elsif(rising_edge(iCLK)) then
 			sGREEN_PREV_CNT <= sGREEN_UNITS_CNT;
 		end if;
 	end process;
@@ -241,25 +246,30 @@ begin
 	sGREEN_TENS_EN  <= '1' when sGREEN_UNITS_CNT = 0 and sGREEN_TIMER = "0110" else '0';
 	
 	
-	-- brojac green desetice
+	-- brojac green desetice; dekrementer ide od 1 do 0
 	process(iCLK, iRST)
 	begin
 		if(iRST = '1') then
 			sGREEN_TENS_CNT <= "0001";
 		elsif(rising_edge(iCLK)) then
+		
 			if(sGREEN_TENS_EN = '1') then
+			
 				if(sGREEN_TENS_CNT = 0) then
 					sGREEN_TENS_CNT <= "0001";
 				else
 					sGREEN_TENS_CNT <= sGREEN_TENS_CNT - 1;
 				end if;
+				
 			elsif(sGREEN_DONE = '1') then
 				sGREEN_TENS_CNT <= "0001";
 			end if;
+			
 		end if;
 	end process;
 	
-	sGREEN_DONE <= '1' when sSTATE = GREEN and sGREEN_TENS_CNT = 0 and sGREEN_PREV_CNT = 0 else '0';
+	-- kada je stanje green, desetice i jedinice dosle do 0 i kada je prosla 1 sekunda onda upali signal sGREEN_DONE
+	sGREEN_DONE <= '1' when sSTATE = GREEN and sGREEN_COUNT_EN = '1' and sGREEN_TENS_CNT = 0 and sGREEN_PREV_CNT = 0 else '0';
 	
 	-- selekcija stanja
 	process(sCURRENT_STATE, sYELLOW_TC, sRED_DONE, sGREEN_DONE, sSTATE)
@@ -367,29 +377,29 @@ begin
 							  "0001111" when sRED_UNITS_DISPLAY = "0111" else
 							  "0000000" when sRED_UNITS_DISPLAY = "1000" else
 							  "0000100" when sRED_UNITS_DISPLAY = "1001" else
-							  "1111111" when sRED_UNITS_DISPLAY = "1111";
+							  "1111111" when sRED_UNITS_DISPLAY = "1111"; 
 	
-			sDISPLAY_1 <= "0000001" when sRED_TENS_CNT = "0000" else
-							  "1001111" when sRED_TENS_CNT = "0001" else
-							  "0010010" when sRED_TENS_CNT = "0010" else
-							  "1111111" when sRED_TENS_CNT = "1111";
+			sDISPLAY_1 <= "1111111" when sRED_TENS_DISPLAY = "0000" else
+							  "1001111" when sRED_TENS_DISPLAY = "0001" else
+							  "0010010" when sRED_TENS_DISPLAY = "0010" else
+							  "1111111" when sRED_TENS_DISPLAY = "1111";
 							  
-			sDISPLAY_2 <= "0000001" when sGREEN_UNITS_CNT = "0000" else
-							  "1001111" when sGREEN_UNITS_CNT = "0001" else
-							  "0010010" when sGREEN_UNITS_CNT = "0010" else
-							  "0000110" when sGREEN_UNITS_CNT = "0011" else
-							  "1001100" when sGREEN_UNITS_CNT = "0100" else
-							  "0100100" when sGREEN_UNITS_CNT = "0101" else
-							  "0100000" when sGREEN_UNITS_CNT = "0110" else
-							  "0001111" when sGREEN_UNITS_CNT = "0111" else
-							  "0000000" when sGREEN_UNITS_CNT = "1000" else
-							  "0000100" when sGREEN_UNITS_CNT = "1001" else
-							  "1111111" when sGREEN_UNITS_CNT = "1111";
+			sDISPLAY_2 <= "0000001" when sGREEN_UNITS_DISPLAY = "0000" else
+							  "1001111" when sGREEN_UNITS_DISPLAY = "0001" else
+							  "0010010" when sGREEN_UNITS_DISPLAY = "0010" else
+							  "0000110" when sGREEN_UNITS_DISPLAY = "0011" else
+							  "1001100" when sGREEN_UNITS_DISPLAY = "0100" else
+							  "0100100" when sGREEN_UNITS_DISPLAY = "0101" else
+							  "0100000" when sGREEN_UNITS_DISPLAY = "0110" else
+							  "0001111" when sGREEN_UNITS_DISPLAY = "0111" else
+							  "0000000" when sGREEN_UNITS_DISPLAY = "1000" else
+							  "0000100" when sGREEN_UNITS_DISPLAY = "1001" else
+							  "1111111" when sGREEN_UNITS_DISPLAY = "1111";
 							  
-			sDISPLAY_3 <= "0000001" when sGREEN_TENS_CNT = "0000" else
-							  "1001111" when sGREEN_TENS_CNT = "0001" else
-							  "0010010" when sGREEN_TENS_CNT = "0010" else
-							  "1111111" when sGREEN_TENS_CNT = "1111";
+			sDISPLAY_3 <= "1111111" when sGREEN_TENS_DISPLAY = "0000" else
+							  "1001111" when sGREEN_TENS_DISPLAY = "0001" else
+							  "0010010" when sGREEN_TENS_DISPLAY = "0010" else
+							  "1111111" when sGREEN_TENS_DISPLAY = "1111";
 
 	process(sDIS_SEL) begin
 		case sDIS_SEL is 
