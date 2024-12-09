@@ -34,7 +34,6 @@ signal sRED_PREV_CNT		: std_logic_vector(3 downto 0);
 signal sRED_TENS_EN		: std_logic;
 signal sRED_DONE			: std_logic;
 
-signal sRED_TENS_DONE	: std_logic;
 
 signal sGREEN_UNITS_CNT	: std_logic_vector(3 downto 0);
 signal sGREEN_TENS_CNT	: std_logic_vector(3 downto 0);
@@ -99,7 +98,14 @@ begin
 			
 	sRUN <= '1' when sPREV_STATE = '0' and iRUN = '1';
 	
-	sCURRENT_STATE <= '1' when sRUN = '1' else '0';
+	process(iCLK, iRST)
+	begin
+		if(iRST = '1') then
+			sCURRENT_STATE <= '0';
+		elsif(rising_edge(iCLK)) then
+			sCURRENT_STATE <= sRUN;
+		end if;
+	end process;
 	
 	-- red timer
 	process(iCLK, iRST)
@@ -107,8 +113,8 @@ begin
 		if(iRST = '1') then
 			sRED_TIMER <= (others => '0');
 		elsif(rising_edge(iCLK)) then
-			if(sSTATE = RED) then
-				if(sRED_TIMER = "0110") then
+			if(sSTATE = RED and iRUN = '1') then
+				if(sRED_TIMER = "0101") then
 					sRED_TIMER <= (others => '0');
 				else	
 					sRED_TIMER <= sRED_TIMER + 1;
@@ -119,7 +125,7 @@ begin
 		end if;
 	end process;
 	
-	sRED_COUNT_EN <= '1' when sRED_TIMER = "0110" else '0';
+	sRED_COUNT_EN <= '1' when sRED_TIMER = "0101" else '0';
 	
 	-- brojac red; jedinice
 	process(iCLK, iRST)
@@ -149,7 +155,7 @@ begin
 		end if;
 	end process;
 	
-	sRED_TENS_EN  <= '1' when sRED_UNITS_CNT = 0 and sRED_TIMER = "0110" else '0';
+	sRED_TENS_EN  <= '1' when sRED_UNITS_CNT = 0 and sRED_TIMER = "0101" else '0';
 
 	-- brojac red desetice
 	process(iCLK, iRST)
@@ -181,8 +187,8 @@ begin
 		if(iRST = '1') then
 			sYELLOW_CNT <= (others => '0');
 		elsif(rising_edge(iCLK)) then
-			if(sSTATE = YELLOW) then
-				if(sYELLOW_CNT = "1001") then
+			if(sSTATE = YELLOW and iRUN = '1') then
+				if(sYELLOW_CNT = "1000") then
 					sYELLOW_CNT <= (others => '0');
 				else	
 					sYELLOW_CNT <= sYELLOW_CNT + 1;
@@ -193,7 +199,7 @@ begin
 		end if;
 	end process;
 	
-	sYELLOW_TC <= '1' when sYELLOW_CNT = "1001" else '0';
+	sYELLOW_TC <= '1' when sYELLOW_CNT = "1000" else '0';
 	
 	-- green timer
 	process(iCLK, iRST)
@@ -201,8 +207,8 @@ begin
 		if(iRST = '1') then
 			sGREEN_TIMER <= (others => '0');
 		elsif(rising_edge(iCLK)) then
-			if(sSTATE = GREEN) then
-				if(sGREEN_TIMER = "0110") then
+			if(sSTATE = GREEN and iRUN = '1') then
+				if(sGREEN_TIMER = "0101") then
 					sGREEN_TIMER <= (others => '0');
 				else	
 					sGREEN_TIMER <= sGREEN_TIMER + 1;
@@ -213,7 +219,7 @@ begin
 		end if;
 	end process;
 
-	sGREEN_COUNT_EN <= '1' when sGREEN_TIMER = "0110" else '0';
+	sGREEN_COUNT_EN <= '1' when sGREEN_TIMER = "0101" else '0';
 	
 	-- brojac green jedinice
 	process(iCLK, iRST)
@@ -276,7 +282,6 @@ begin
 	begin
 		case sSTATE is
 			when IDLE =>
-
 			
 				if(sCURRENT_STATE = '1') then
 					sNEXT_STATE <= RED;
@@ -286,6 +291,10 @@ begin
 			
 			when RED =>
 			
+				oGREEN <= '0';
+				oRED <= '1';
+				oYELLOW <= '0';
+			
 				if(sRED_DONE = '1') then
 					sNEXT_STATE <= YELLOW;
 				else
@@ -294,6 +303,10 @@ begin
 			
 			when YELLOW =>
 
+				oGREEN <= '0';
+				oRED <= '0';
+				oYELLOW <= '1';
+			
 			
 				if(sYELLOW_TC = '1') then
 					sNEXT_STATE <= GREEN;
@@ -302,6 +315,9 @@ begin
 				end if;
 			
 			when GREEN =>
+				oGREEN <= '1';
+				oRED <= '0';
+				oYELLOW <= '0';
 				
 				if(sGREEN_DONE = '1') then	
 					sNEXT_STATE <= IDLE;
@@ -313,11 +329,6 @@ begin
 			when others => sNEXT_STATE <= IDLE;
 		end case;
 	end process;
-	
-	oRED <= '1' when sSTATE = RED else '0';
-	oGREEN <= '1' when sSTATE = GREEN else '0';
-	oYELLOW<= '1' when sSTATE = YELLOW else '0';
-	
 	
 	sRED_UNITS_DISPLAY <= sRED_UNITS_CNT when sSTATE = RED else "1111";
 	sRED_TENS_DISPLAY <= sRED_TENS_CNT when sSTATE = RED else "1111";
@@ -332,7 +343,7 @@ begin
 			
 		elsif(rising_edge(iCLK)) then
 		
-			if(sDIS_CNT = cDIS_MAX) then
+			if(sDIS_CNT = "0001") then
 				sDIS_CNT <= (others => '0');
 			else
 				sDIS_CNT <= sDIS_CNT + 1;
@@ -342,7 +353,7 @@ begin
 		
 	end process;
 	
-	sTC <= '1' when sDIS_CNT = cDIS_MAX else '0';
+	sTC <= '1' when sDIS_CNT = "0001" else '0';
 
 	process (iCLK, iRST)
 	begin
@@ -377,12 +388,12 @@ begin
 							  "0001111" when sRED_UNITS_DISPLAY = "0111" else
 							  "0000000" when sRED_UNITS_DISPLAY = "1000" else
 							  "0000100" when sRED_UNITS_DISPLAY = "1001" else
-							  "1111111" when sRED_UNITS_DISPLAY = "1111"; 
+							  "1111111"; 
 	
 			sDISPLAY_1 <= "1111111" when sRED_TENS_DISPLAY = "0000" else
 							  "1001111" when sRED_TENS_DISPLAY = "0001" else
 							  "0010010" when sRED_TENS_DISPLAY = "0010" else
-							  "1111111" when sRED_TENS_DISPLAY = "1111";
+							  "1111111";
 							  
 			sDISPLAY_2 <= "0000001" when sGREEN_UNITS_DISPLAY = "0000" else
 							  "1001111" when sGREEN_UNITS_DISPLAY = "0001" else
@@ -394,12 +405,12 @@ begin
 							  "0001111" when sGREEN_UNITS_DISPLAY = "0111" else
 							  "0000000" when sGREEN_UNITS_DISPLAY = "1000" else
 							  "0000100" when sGREEN_UNITS_DISPLAY = "1001" else
-							  "1111111" when sGREEN_UNITS_DISPLAY = "1111";
+							  "1111111";
 							  
 			sDISPLAY_3 <= "1111111" when sGREEN_TENS_DISPLAY = "0000" else
 							  "1001111" when sGREEN_TENS_DISPLAY = "0001" else
 							  "0010010" when sGREEN_TENS_DISPLAY = "0010" else
-							  "1111111" when sGREEN_TENS_DISPLAY = "1111";
+							  "1111111";
 
 	process(sDIS_SEL) begin
 		case sDIS_SEL is 
@@ -409,7 +420,14 @@ begin
 			when "00" => o7SEGM <= sDISPLAY_3; 
 			when others => o7SEGM <= "1111111";
 		end case;
-end process;
+	end process;
+	
+	
+	--o7SEGM <= sDISPLAY_3 when sDIS_SEL = "11" else -- preko uslovne dodele mi se menja
+		--		 sDISPLAY_2 when sDIS_SEL = "10" else -- kao na screenshot-u
+			--	 sDISPLAY_1 when sDIS_SEL = "01" else
+				-- sDISPLAY_0 when sDIS_SEL = "00" else
+				 --"1111111";
 	
 	
 end Behavioral;

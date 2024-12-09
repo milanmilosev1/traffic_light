@@ -66,8 +66,18 @@ begin
 		sRST <= '0';
 		
 		sRUN <= '1';
-	
-	
+		wait for 350 * iCLK_PERIOD; -- 350 jer imamo 6 perioda za svaki sekund RED_TIMER
+		sRUN <= '0';								-- 9 perioda za YELLLOW_TIMER; i 6 perioda za svaki sekund GREEN_TIMER
+		
+		
+		sRST <= '1';
+		wait for iCLK_PERIOD;
+		sRST <= '0';
+		
+		sRUN <= '1';
+		wait for 350 * iCLK_PERIOD; --drugi put
+		sRUN <= '0';								
+		
 	wait;
    end process;
 end architecture;
